@@ -1,18 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-STEFANN | Scene Text Editor using Font Adaptive Neural Network.
-Created on Mon Apr  1 11:00:00 2019
-Author: Prasun Roy | https://prasunroy.github.io
-GitHub: https://github.com/prasunroy/stefann
-
-Copyright (c) 2019 Prasun Roy, Saumik Bhattacharya and Subhankar Ghosh.
-Copyright (c) 2019 Indian Statistical Institute.
-All Rights Reserved.
-
-"""
-# -----------------------------------------------------------------------------
-
-# imports
 import base64
 import datetime
 import io
@@ -20,23 +5,19 @@ import json
 import os
 import time
 import webbrowser
-
 import colorama
 import cv2
 import numpy
-
 from PIL import Image, ImageDraw, ImageFont
-from PyQt5.QtCore import Qt, QByteArray
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QDesktopWidget
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QPushButton
-from PyQt5.QtWidgets import QFileDialog
+# from keras.models import model_from_json
+import keras
+from keras.models import model_from_json
+import tensorflow
 
 # ensure keras using tensorflow backend
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 
 # import modules from keras
-from keras.models import model_from_json
 
 
 with open('models/fannet.json', 'r') as fp:
@@ -47,7 +28,20 @@ with open('models/colornet.json', 'r') as fp:
     colornet = model_from_json(fp.read())
 colornet.load_weights('models/colornet_weights.h5')
 
+region_f = grab_region(image_mask, image_mask, contours, bndboxes, index)
+tensor_f = image2tensor(region_f, fannet.input_shape[0][1:3], .1, 1.)
+onehot_f = char2onehot(char, alphabet)
+output_f = fannet.predict([tensor_f, onehot_f])
+output_f = numpy.squeeze(output_f)
+output_f = numpy.asarray(output_f, numpy.uint8)
 
+# Transfer color
+region_c = grab_region(image, image_mask, contours, bndboxes, index)
+input1_c = image2tensor(region_c, colornet.input_shape[0][1:3], .1, 1.)
+input2_f = image2tensor(output_f, colornet.input_shape[0][1:3], .1, 1.)
+
+# `output_c`: Colornet의 Output으로 해당 Region에 대한 Color 정보를 담고 있는 이미지입니다. 
+output_c = colornet.predict([input1_c, input2_f])
 
 
 
